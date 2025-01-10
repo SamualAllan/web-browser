@@ -1,12 +1,21 @@
 import socket
+import ssl
 
 # Class to parse the URL
 class URL: 
     def __init__(self, url):            # Constructor for the URL class
         self.scheme, url = url.split("://", 1)  # Split the URL into scheme and the rest
-        assert self.scheme == "http"            # Assert that the scheme is HTTP
+        assert self.scheme in ["http", "https"]  # Assert that the scheme is either HTTP or HTTPS
         self.host, url = url.split("/", 1)      # Split the URL into host and the rest
         self.path = "/" + url                   # The path is the rest of the URL
+        if self.scheme == "http":
+            self.port = 80                     # Default port for HTTP is 80
+        elif self.scheme == "https":
+            self.port = 443                    # Default port for HTTPS is 443
+
+        if ":" in self.host:                            # If the host contains a colon, split the host and port
+            self.host, port =self.host.split(":", 1)    # Split the host and port
+            self.port = int(port)                       # Convert the port to an integer   
 
     # Function to send a request to the server
     def requests(self): 
@@ -15,7 +24,10 @@ class URL:
             type=socket.SOCK_STREAM,    # Sockets are used for sending and receiving data
             proto=socket.IPPROTO_TCP,   # IPPROTO_TCP is the protocol for TCP, which is a connection-oriented protocol
         )
-        s.connect((self.host, 80))      # Connect to the host on port 80
+        s.connect((self.host, self.port))                       # Connect to the host on the specified port
+        if self.scheme == "https":                              # If the scheme is HTTPS, wrap the socket in an SSL context
+            ctx = ssl.create_default_context()                  # Create a default SSL context
+            s = ctx.wrap_socket(s, server_hostname=self.host)   # Wrap the socket in an SSL context   
 
         request = "GET {} HTTP/1.0\r\n".format(self.path) # Create the request string
         request += "Host: {}\r\n".format(self.host)       # Add the host to the request
@@ -61,3 +73,4 @@ def load(url):
 if __name__ == "__main__": 
     import sys              # Import the sys module
     load(URL(sys.argv[1]))  # Load the URL
+
